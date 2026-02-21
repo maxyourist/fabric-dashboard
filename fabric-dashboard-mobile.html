@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#060b17">
+<title>Fabric Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --navy:   #060b17;
+  --panel:  #0c1525;
+  --panel2: #111e32;
+  --border: rgba(100,160,255,0.12);
+  --blue:   #4d8bf5; --blue-lt:#7ab0ff; --glow:rgba(77,139,245,0.2);
+  --cyan:   #20d4ee; --teal:#14b8a6;
+  --text:   #dce8f8; --text2:#7a9ec0; --muted:#3d5470;
+  --green:  #23c55e; --red:#f87070; --yellow:#fbbf24;
+  --purple: #a78bfa; --pink:#f472b6;
+  --sat: env(safe-area-inset-top,0px);
+  --sab: env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--navy);}
+body{font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--text);-webkit-font-smoothing:antialiased;}
+
+/* SHELL */
+.shell{display:flex;flex-direction:column;height:100%;height:100dvh;}
+
+/* TOP BAR */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:calc(var(--sat) + 12px) 16px 12px;
+  background:rgba(6,11,23,.97);border-bottom:1px solid var(--border);
+  flex-shrink:0;z-index:10;
+}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.tb-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.tb-title{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.02em;}
+.tb-right{display:flex;align-items:center;gap:10px;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite;}
+.status-dot.loading{background:var(--yellow);box-shadow:0 0 8px var(--yellow);}
+.status-dot.error{background:var(--red);box-shadow:0 0 8px var(--red);animation:none;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.tb-refresh{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:rgba(77,139,245,.12);color:var(--blue-lt);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.tb-refresh:active{background:rgba(77,139,245,.3);}
+
+/* CONTENT AREA */
+.content{flex:1;position:relative;overflow:hidden;}
+
+/* PAGES */
+.page{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(72px + var(--sab));display:none;}
+.page.active{display:block;}
+
+/* BOTTOM NAV */
+.botnav{
+  display:flex;background:rgba(6,11,23,.97);border-top:1px solid var(--border);
+  padding:6px 0 calc(var(--sab) + 2px);flex-shrink:0;
+}
+.bn-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:none;background:none;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;transition:color .15s;}
+.bn-btn .ico{font-size:20px;line-height:1;}
+.bn-btn.active{color:var(--blue-lt);}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:14px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi.c1::before{background:linear-gradient(90deg,var(--blue),var(--cyan));}
+.kpi.c2::before{background:linear-gradient(90deg,var(--cyan),var(--teal));}
+.kpi.c3::before{background:linear-gradient(90deg,var(--purple),var(--pink));}
+.kpi.c4::before{background:linear-gradient(90deg,var(--teal),var(--green));}
+.kpi-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text2);margin-bottom:5px;}
+.kpi-val{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin-bottom:2px;}
+.kpi-sub{font-size:11px;color:var(--text2);}
+
+/* FILTER CHIPS */
+.f-sec{margin-bottom:14px;}
+.f-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px;}
+.chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px;scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{padding:7px 14px;border-radius:100px;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--panel2);color:var(--text2);cursor:pointer;user-select:none;white-space:nowrap;flex-shrink:0;transition:all .15s;}
+.chip:active{transform:scale(.95);}
+.chip.on{background:rgba(77,139,245,.2);border-color:var(--blue);color:#fff;}
+.chip.mo{background:rgba(32,212,238,.15);border-color:var(--cyan);color:var(--cyan);}
+
+/* WEEK EXPANSION */
+.week-exp{overflow:hidden;max-height:0;opacity:0;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s,margin .25s;margin-top:0;}
+.week-exp.open{max-height:200px;opacity:1;margin-top:8px;}
+.wchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:3px;scrollbar-width:none;}
+.wchips::-webkit-scrollbar{display:none;}
+.wchip{padding:5px 12px;border-radius:100px;font-size:11px;font-weight:500;border:1px solid rgba(77,139,245,.22);background:rgba(77,139,245,.07);color:var(--text2);cursor:pointer;user-select:none;white-space:nowrap;flex-shrink:0;font-family:'JetBrains Mono',monospace;transition:all .15s;}
+.wchip:active{transform:scale(.95);}
+.wchip.on{background:rgba(32,212,238,.18);border-color:var(--cyan);color:var(--cyan);}
+
+/* SECTION HDR */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px;}
+.sec-hdr h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);}
+.sec-hdr span{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+
+/* TOP LIST */
+.top-list{display:flex;flex-direction:column;gap:6px;}
+.top-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;}
+.top-rank{font-size:13px;font-weight:700;color:var(--muted);width:22px;text-align:center;flex-shrink:0;font-family:'JetBrains Mono',monospace;}
+.top-rank.r1{color:var(--yellow);font-size:16px;}
+.top-rank.r2{color:#94a3b8;font-size:15px;}
+.top-rank.r3{color:#cd7c3a;font-size:14px;}
+.top-info{flex:1;min-width:0;}
+.top-name{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.top-bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--cyan));margin-top:5px;}
+.top-ct{font-size:14px;font-weight:700;color:var(--cyan);font-family:'JetBrains Mono',monospace;flex-shrink:0;}
+
+/* LOOKUP PAGE */
+.search-wrap{position:relative;margin-bottom:14px;}
+.search-inp{
+  width:100%;padding:14px 44px 14px 16px;border-radius:13px;
+  background:var(--panel);border:1.5px solid var(--border);
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:16px;
+  outline:none;-webkit-appearance:none;transition:border-color .2s;
+}
+.search-inp::placeholder{color:var(--muted);}
+.search-inp:focus{border-color:var(--blue);}
+.search-x{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--panel2);border:none;color:var(--muted);width:26px;height:26px;border-radius:50%;font-size:13px;cursor:pointer;display:none;align-items:center;justify-content:center;}
+.search-x.show{display:flex;}
+
+/* FABRIC CARD */
+.fab-card{background:var(--panel);border:1.5px solid rgba(77,139,245,.3);border-radius:15px;overflow:hidden;margin-bottom:14px;animation:up .25s ease;}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fc-hdr{padding:14px 16px;background:linear-gradient(135deg,rgba(77,139,245,.1),rgba(32,212,238,.05));border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;}
+.fc-code{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;color:var(--cyan);}
+.fc-factory{font-size:11px;color:var(--pink);font-family:'JetBrains Mono',monospace;margin-top:3px;}
+.fc-uses{font-size:13px;color:var(--text2);text-align:right;}
+.fc-uses strong{color:var(--blue-lt);font-family:'JetBrains Mono',monospace;display:block;font-size:18px;}
+.fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+.fc-cell{background:var(--panel);padding:12px 14px;}
+.fc-cell-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px;}
+.fc-cell-val{font-size:14px;font-weight:700;color:var(--text);}
+.fc-cell-val.mono{font-family:'JetBrains Mono',monospace;color:var(--teal);font-size:13px;}
+.fc-cell-val.pink{color:var(--pink);}
+.fc-section{padding:12px 16px;border-top:1px solid var(--border);}
+.fc-sec-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:7px;}
+.tags{display:flex;flex-wrap:wrap;gap:5px;}
+.wtag{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--blue-lt);background:rgba(77,139,245,.1);border:1px solid rgba(77,139,245,.2);padding:3px 8px;border-radius:5px;}
+.stag{font-size:11px;color:var(--purple);background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);padding:3px 9px;border-radius:100px;}
+
+/* MODE TOGGLE */
+.mode-tog{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;}
+.mode-btn{flex:1;padding:10px;border:none;background:none;color:var(--text2);font-size:14px;font-weight:600;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all .15s;}
+.mode-btn.on{background:rgba(77,139,245,.22);color:#fff;}
+
+/* USAGE LIST */
+.ulist{display:flex;flex-direction:column;gap:6px;}
+.uitem{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;}
+.u-rank{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;width:24px;text-align:right;flex-shrink:0;}
+.u-info{flex:1;min-width:0;}
+.u-name{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.u-po{font-size:10px;color:var(--teal);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.u-right{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.u-bar{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--cyan));}
+.u-ct{font-size:13px;font-weight:700;color:var(--blue-lt);font-family:'JetBrains Mono',monospace;min-width:28px;text-align:right;}
+
+/* CHARTS */
+.chart-card{background:var(--panel);border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:12px;}
+.cc-hdr{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cc-hdr h3{font-size:13px;font-weight:600;color:var(--text);}
+.cc-tag{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--blue-lt);background:rgba(77,139,245,.1);padding:2px 7px;border-radius:4px;border:1px solid rgba(77,139,245,.2);}
+.cc-body{padding:12px;}
+.chart-wrap{position:relative;height:200px;}
+
+/* DATA PAGE */
+.data-search-row{display:flex;gap:8px;margin-bottom:12px;}
+.data-inp{flex:1;padding:11px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:15px;outline:none;-webkit-appearance:none;}
+.data-inp::placeholder{color:var(--muted);}
+.data-inp:focus{border-color:var(--blue);}
+.data-sel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px 10px;font-size:13px;color:var(--text);font-family:'Space Grotesk',sans-serif;outline:none;flex-shrink:0;}
+.dcards{display:flex;flex-direction:column;gap:8px;}
+.dcard{background:var(--panel);border:1px solid var(--border);border-radius:13px;overflow:hidden;}
+.dcard-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;gap:8px;}
+.dcard-main{flex:1;min-width:0;}
+.dcard-style{font-size:15px;font-weight:700;color:var(--text);}
+.dcard-fab{font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.dcard-right{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.dcard-week{font-size:10px;color:var(--blue-lt);background:rgba(77,139,245,.1);border:1px solid rgba(77,139,245,.2);padding:2px 7px;border-radius:4px;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+.chev{font-size:12px;color:var(--muted);transition:transform .2s;display:inline-block;}
+.dcard.open .chev{transform:rotate(180deg);}
+.dcard-body{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1);}
+.dcard.open .dcard-body{max-height:500px;border-top:1px solid var(--border);}
+.dcard-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+.df{background:var(--panel2);padding:10px 14px;}
+.df-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:3px;}
+.df-val{font-size:13px;font-weight:600;color:var(--text);}
+.df-val.mono{font-family:'JetBrains Mono',monospace;color:var(--teal);font-size:12px;}
+.df-val.ok{color:var(--green);}
+.df-val.buy{color:var(--yellow);}
+.load-more{width:100%;padding:13px;border-radius:12px;border:1px solid var(--border);background:var(--panel);color:var(--blue-lt);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;}
+.load-more:active{background:rgba(77,139,245,.15);}
+
+/* STATES */
+.spin-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 16px;gap:14px;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-lbl{font-size:14px;color:var(--text2);}
+.empty{padding:28px 16px;text-align:center;font-size:14px;color:var(--muted);}
+.err-box{background:rgba(248,112,112,.08);border:1px solid rgba(248,112,112,.25);border-radius:13px;padding:20px;text-align:center;color:var(--red);font-size:14px;line-height:1.7;margin-bottom:14px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-icon">🧵</div>
+      <div class="tb-title">Fabric Dashboard</div>
+    </div>
+    <div class="tb-right">
+      <div class="status-dot loading" id="dot"></div>
+      <div class="tb-refresh" id="refreshBtn" onclick="loadData()">↻</div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- HOME -->
+    <div class="page active" id="pg-home">
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi c1"><div class="kpi-lbl">Loading...</div></div>
+        <div class="kpi c2"><div class="kpi-lbl">Please wait</div></div>
+      </div>
+      <div class="f-sec">
+        <div class="f-lbl">Year</div>
+        <div class="chips" id="yearChips"></div>
+      </div>
+      <div class="f-sec">
+        <div class="f-lbl">Month — tap to expand weeks</div>
+        <div id="monthArea"></div>
+      </div>
+      <div class="sec-hdr"><h2>Top 10 Fabrics</h2><span id="fabLbl"></span></div>
+      <div class="top-list" id="topFabs"><div class="spin-wrap"><div class="spinner"></div></div></div>
+      <div class="sec-hdr"><h2>Top 10 Styles</h2><span id="styleLbl"></span></div>
+      <div class="top-list" id="topStyles"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- LOOKUP -->
+    <div class="page" id="pg-lookup">
+      <div class="search-wrap">
+        <input class="search-inp" id="lookupInp" type="text" placeholder="Fabric, SWAT code, style..." oninput="onLookup()" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="search-x" id="lookupX" onclick="clearLookup()">✕</button>
+      </div>
+      <div id="fabCard"></div>
+      <div class="mode-tog">
+        <button class="mode-btn on" id="mFab" onclick="setMode('fabric')">Fabric</button>
+        <button class="mode-btn" id="mStyle" onclick="setMode('style')">Style</button>
+      </div>
+      <div class="ulist" id="uList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="page" id="pg-charts">
+      <div class="chart-card"><div class="cc-hdr"><h3>Most Used Fabrics</h3><span class="cc-tag">COUNT</span></div><div class="cc-body"><div class="chart-wrap"><canvas id="cFab"></canvas></div></div></div>
+      <div class="chart-card"><div class="cc-hdr"><h3>Most Used Styles</h3><span class="cc-tag">COUNT</span></div><div class="cc-body"><div class="chart-wrap"><canvas id="cStyle"></canvas></div></div></div>
+      <div class="chart-card"><div class="cc-hdr"><h3>Usage Over Time</h3><span class="cc-tag">TOP 5</span></div><div class="cc-body"><div class="chart-wrap"><canvas id="cTrend"></canvas></div></div></div>
+    </div>
+
+    <!-- DATA -->
+    <div class="page" id="pg-data">
+      <div class="data-search-row">
+        <input class="data-inp" id="dataInp" type="text" placeholder="Search fabric, style..." oninput="filterData()" autocomplete="off">
+        <select class="data-sel" id="dataSel" onchange="filterData()">
+          <option value="">All</option>
+          <option value="ok">OK</option>
+          <option value="buy">Buy</option>
+        </select>
+      </div>
+      <div class="dcards" id="dCards"><div class="spin-wrap"><div class="spinner"></div><div class="spin-lbl">Loading...</div></div></div>
+      <button class="load-more" id="loadMore" onclick="moreData()" style="display:none">Load More</button>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="botnav">
+    <button class="bn-btn active" id="bn-home" onclick="nav('home')"><span class="ico">🏠</span>Home</button>
+    <button class="bn-btn" id="bn-lookup" onclick="nav('lookup')"><span class="ico">🔍</span>Lookup</button>
+    <button class="bn-btn" id="bn-charts" onclick="nav('charts')"><span class="ico">📊</span>Charts</button>
+    <button class="bn-btn" id="bn-data" onclick="nav('data')"><span class="ico">📋</span>Data</button>
+  </div>
+
+</div>
+
+<script>
+const URL = 'https://script.google.com/macros/s/AKfycbwg91uBJy4aN__goTJmNOOEpvRp_7aBxKj5EKGV2o273FlUjQPZe0WFYOoNgni2YR4/exec';
+
+// JSONP loader — works on mobile Safari where fetch() can be blocked
+function jsonpFetch(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Date.now();
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Request timed out after 30s'));
+    }, 30000);
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = function(data) {
+      cleanup();
+      resolve(data);
+    };
+    script.onerror = () => { cleanup(); reject(new Error('Failed to load script — check network')); };
+    script.src = url + '?callback=' + cbName;
+    document.head.appendChild(script);
+  });
+}
+const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PG = 20;
+
+let all=[], filtered=[], dataFiltered=[], dataOffset=0;
+let selYears=new Set(), selWeeks=new Set(), openMK=null;
+let usageMode='fabric';
+let fabMap={}, styleMap={}, poMap={}, metaMap={}, swatMap={}, monthData={};
+let chartObjs={};
+
+function norm(s){return String(s||'').trim().toUpperCase();}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── LOAD ──────────────────────────────────────────────────────────────────────
+async function loadData(){
+  dot('loading');
+  document.getElementById('refreshBtn').style.opacity='.5';
+  try {
+    const j = await jsonpFetch(URL);
+    if(!j||!j.data) throw new Error('No data returned from sheet');
+
+    const dRx=/\d+\/\d+/;
+    const sheets=Object.keys(j.data).filter(n=>dRx.test(n));
+    all=sheets.flatMap(n=>parseSheet(j.data[n],n));
+
+    // SWAT map
+    swatMap={};
+    const fc=j.data['FABRIC CODES'];
+    if(fc){fc.forEach(row=>{const f=String(row[0]||'').trim();if(!f)return;for(let i=1;i<=4;i++){const s=String(row[i]||'').trim().toUpperCase();if(s)swatMap[s]=f;}});}
+
+    // Global maps
+    fabMap={}; styleMap={}; poMap={}; metaMap={};
+    const poEntries={};
+    all.forEach(r=>{
+      const nf=norm(r.fabric);
+      if(nf){
+        fabMap[nf]=(fabMap[nf]||0)+1;
+        if(!metaMap[nf])metaMap[nf]={weeks:new Set(),styles:new Set(),first:r.sheet};
+        const m=metaMap[nf];
+        m.weeks.add(r.sheet); if(r.style)m.styles.add(r.style);
+        if(sdv(r.sheet)<sdv(m.first))m.first=r.sheet;
+        const rawPO=r.fab_po?r.fab_po.replace(/^po[^\d]*/i,'').trim():'';
+        if(rawPO&&/^\d+$/.test(rawPO)){  // strip 'PO' + any separators, keep if purely numeric
+          if(!poEntries[nf])poEntries[nf]=[];
+          poEntries[nf].push({po:rawPO,sheet:r.sheet,dv:sdv(r.sheet)});
+        }
+      }
+      if(r.style)styleMap[r.style]=(styleMap[r.style]||0)+1;
+    });
+    Object.entries(poEntries).forEach(([nf,e])=>{e.sort((a,b)=>b.dv-a.dv);poMap[nf]={po:e[0].po,sheet:e[0].sheet};});
+    all.forEach(r=>{
+      r.fn=norm(r.fabric);
+      r.fu=fabMap[r.fn]||0; r.su=styleMap[r.style]||0;
+      r.lpo=poMap[r.fn]?.po||'';
+    });
+
+    // Month data
+    monthData={};
+    sheets.forEach(n=>{const{y,m}=psd(n);if(!y||!m)return;const k=`${y}-${m}`;if(!monthData[k])monthData[k]={y,m,sheets:[]};monthData[k].sheets.push(n);});
+    Object.values(monthData).forEach(m=>m.sheets.sort((a,b)=>sdv(b)-sdv(a)));
+
+    buildFilters(); applyFilters();
+    dot('live');
+  } catch(err) {
+    dot('error');
+    // Show error on all pages
+    const msg=`<div class="err-box">❌ Could not load data<br><small>${esc(err.message)}</small><br><br><button onclick="loadData()" style="background:var(--blue);border:none;color:#fff;padding:8px 20px;border-radius:8px;font-size:14px;cursor:pointer;">Retry</button></div>`;
+    document.getElementById('kpiGrid').innerHTML=msg;
+    document.getElementById('topFabs').innerHTML='';
+    document.getElementById('topStyles').innerHTML='';
+    document.getElementById('uList').innerHTML='';
+    document.getElementById('dCards').innerHTML='';
+    console.error(err);
+  }
+  document.getElementById('refreshBtn').style.opacity='1';
+}
+
+function sdv(name){
+  if(!name)return 0;
+  const ym=name.match(/\b(20\d{2})\b/);const y=ym?parseInt(ym[1]):0;
+  const parts=name.split(/\s*-\s*/);let mo=0,d=0;
+  for(let i=parts.length-1;i>=0;i--){const dm=parts[i].match(/(\d{1,2})\/(\d{1,2})/);if(dm){mo=parseInt(dm[1]);d=parseInt(dm[2]);break;}}
+  return y*10000+mo*100+d;
+}
+
+function psd(name){const ym=name.match(/\b(20\d{2})\b/),mm=name.match(/(\d{1,2})\//);return{y:ym?parseInt(ym[1]):null,m:mm?parseInt(mm[1]):null};}
+
+function parseSheet(grid,sheetName){
+  if(!grid||grid.length<2)return[];
+  let hi=0;
+  for(let i=0;i<Math.min(6,grid.length);i++){if(grid[i].map(c=>String(c).toLowerCase()).includes('style')){hi=i;break;}}
+  const hd=grid[hi].map(c=>String(c).toLowerCase().trim());
+  const col=(row,n)=>{const i=hd.indexOf(n);return i>=0?String(row[i]??'').trim():'';};
+  const num=(row,n)=>parseFloat(col(row,n))||0;
+  const{y,m}=psd(sheetName);
+  return grid.slice(hi+1).filter(r=>col(r,'style')).map(r=>{
+    let st='';
+    for(const c of r){const v=String(c??'').toLowerCase().trim();if(v==='ok'){st='ok';break;}if(v.startsWith('buy')){st=v;break;}}
+    return{sheet:sheetName,y,m,vendor:col(r,'vendor'),style:col(r,'style'),fabric:col(r,'fab'),
+      sup:col(r,'supplier fab')||col(r,'supplier_fab'),qty:num(r,'quantity'),
+      yld:num(r,'yield'),yrd:num(r,'yardage'),stock:num(r,'stock'),
+      fab_po:col(r,'fab po')||col(r,'fab_po'),status:st,fn:'',fu:0,su:0,lpo:''};
+  });
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function buildFilters(){
+  const years=[...new Set(all.map(r=>r.y).filter(Boolean))].sort();
+  document.getElementById('yearChips').innerHTML=years.map(y=>
+    `<div class="chip${selYears.has(y)?' on':''}" onclick="toggleY(${y})">${y}</div>`).join('');
+
+  const area=document.getElementById('monthArea');
+  const sortedKeys=Object.keys(monthData).sort((a,b)=>{
+    const[ay,am]=a.split('-').map(Number),[by,bm]=b.split('-').map(Number);return ay!==by?ay-by:am-bm;
+  }).filter(k=>!selYears.size||selYears.has(monthData[k].y));
+
+  let html=`<div class="chips" style="flex-wrap:wrap;gap:7px;">`;
+  sortedKeys.forEach(k=>{
+    const{m}=monthData[k];
+    const isOpen=openMK===k;
+    const hasSel=monthData[k].sheets.some(s=>selWeeks.has(s));
+    html+=`<div class="chip${isOpen?' mo':hasSel?' on':''}" onclick="toggleM('${k}')">${MN[m-1]}</div>`;
+  });
+  html+=`</div>`;
+
+  // Week expansion for open month
+  if(openMK&&monthData[openMK]){
+    html+=`<div class="week-exp open"><div class="wchips">`;
+    monthData[openMK].sheets.forEach(s=>{
+      html+=`<div class="wchip${selWeeks.has(s)?' on':''}" onclick="toggleW('${s.replace(/'/g,"\\'")}')">${esc(s)}</div>`;
+    });
+    html+=`</div></div>`;
+  }
+  area.innerHTML=html;
+}
+
+function toggleY(y){selYears.has(y)?selYears.delete(y):selYears.add(y);selWeeks.clear();openMK=null;buildFilters();applyFilters();}
+function toggleM(k){openMK=openMK===k?null:k;buildFilters();}
+function toggleW(s){selWeeks.has(s)?selWeeks.delete(s):selWeeks.add(s);buildFilters();applyFilters();}
+
+function applyFilters(){
+  filtered=all.filter(r=>{
+    if(selYears.size&&!selYears.has(r.y))return false;
+    if(selWeeks.size&&!selWeeks.has(r.sheet))return false;
+    return true;
+  });
+  renderHome(); renderUsage(); filterData();
+  if(document.getElementById('pg-charts').classList.contains('active'))renderCharts();
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────────────
+function renderHome(){
+  const r=filtered;
+  const uFabs=new Set(r.map(x=>x.fn).filter(Boolean)).size;
+  const units=r.reduce((s,x)=>s+x.qty,0);
+  const vm={};r.forEach(x=>{if(x.vendor)vm[x.vendor]=(vm[x.vendor]||0)+1;});
+  const tv=Object.entries(vm).sort((a,b)=>b[1]-a[1])[0];
+  const wks=new Set(r.map(x=>x.sheet)).size;
+
+  document.getElementById('kpiGrid').innerHTML=`
+    <div class="kpi c1"><div class="kpi-lbl">Unique Fabrics</div><div class="kpi-val" style="color:var(--blue-lt)">${uFabs.toLocaleString()}</div><div class="kpi-sub">distinct codes</div></div>
+    <div class="kpi c2"><div class="kpi-lbl">Total Units</div><div class="kpi-val" style="color:var(--cyan)">${units.toLocaleString()}</div><div class="kpi-sub">sum of qty</div></div>
+    <div class="kpi c3"><div class="kpi-lbl">Top Vendor</div><div class="kpi-val" style="color:var(--purple);font-size:${tv&&tv[0].length>8?'16px':'22px'}">${tv?tv[0]:'—'}</div><div class="kpi-sub">${tv?tv[1]+' lines':''}</div></div>
+    <div class="kpi c4"><div class="kpi-lbl">Weeks Shown</div><div class="kpi-val" style="color:var(--teal)">${wks}</div><div class="kpi-sub">selected</div></div>`;
+
+  const fm={},sm={};
+  r.forEach(x=>{if(x.fn)fm[x.fn]=(fm[x.fn]||0)+1;if(x.style)sm[x.style]=(sm[x.style]||0)+1;});
+  const t10f=Object.entries(fm).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const t10s=Object.entries(sm).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const mxF=t10f[0]?.[1]||1,mxS=t10s[0]?.[1]||1;
+  const rk=i=>i===0?'①':i===1?'②':i===2?'③':`${i+1}`;
+  const rc=i=>i===0?' r1':i===1?' r2':i===2?' r3':'';
+  const mkList=(arr,mx)=>arr.length?arr.map(([n,c],i)=>`
+    <div class="top-item">
+      <div class="top-rank${rc(i)}">${rk(i)}</div>
+      <div class="top-info"><div class="top-name">${esc(n)}</div><div class="top-bar" style="width:${Math.round(c/mx*100)}%"></div></div>
+      <div class="top-ct">${c}×</div>
+    </div>`).join(''):'<div class="empty">No data</div>';
+
+  document.getElementById('topFabs').innerHTML=mkList(t10f,mxF);
+  document.getElementById('topStyles').innerHTML=mkList(t10s,mxS);
+  document.getElementById('fabLbl').textContent=Object.keys(fm).length+' fabrics';
+  document.getElementById('styleLbl').textContent=Object.keys(sm).length+' styles';
+}
+
+// ── LOOKUP ────────────────────────────────────────────────────────────────────
+function onLookup(){
+  const q=document.getElementById('lookupInp').value.trim();
+  document.getElementById('lookupX').classList.toggle('show',q.length>0);
+  showFabCard(q); renderUsage();
+}
+
+function clearLookup(){
+  document.getElementById('lookupInp').value='';
+  document.getElementById('lookupX').classList.remove('show');
+  document.getElementById('fabCard').innerHTML='';
+  renderUsage();
+}
+
+function showFabCard(q){
+  const el=document.getElementById('fabCard');
+  if(!q){el.innerHTML='';return;}
+  const nq=q.toUpperCase();
+  const factory=swatMap[nq]||Object.entries(swatMap).find(([k])=>k.includes(nq))?.[1]||'';
+  const mk=Object.keys(fabMap).find(k=>k===nq)||Object.keys(fabMap).find(k=>k.includes(nq))||'';
+
+  if(!mk&&!factory){el.innerHTML='';return;}
+
+  const meta=mk?metaMap[mk]:{};
+  const uses=mk?fabMap[mk]:0;
+  const lpo=mk?poMap[mk]:null;
+  const weeks=meta.weeks?[...meta.weeks].sort():[]; 
+  const styles=meta.styles?[...meta.styles]:[];
+  const first=meta.first||'—';
+  const po=lpo?lpo.po.replace(/^po[:\s]+/i,'').trim():'';
+
+  el.innerHTML=`<div class="fab-card">
+    <div class="fc-hdr">
+      <div>
+        <div class="fc-code">${esc(mk||nq)}</div>
+        ${factory?`<div class="fc-factory">Factory: ${esc(factory)}</div>`:''}
+      </div>
+      <div class="fc-uses"><strong>${uses}</strong>times used</div>
+    </div>
+    <div class="fc-grid">
+      <div class="fc-cell"><div class="fc-cell-lbl">Last PO</div><div class="fc-cell-val mono">${po||'—'}</div>${lpo?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${esc(lpo.sheet)}</div>`:''}</div>
+      <div class="fc-cell"><div class="fc-cell-lbl">First Used</div><div class="fc-cell-val" style="font-size:13px">${esc(first)}</div></div>
+      ${factory?`<div class="fc-cell"><div class="fc-cell-lbl">Factory Code</div><div class="fc-cell-val pink">${esc(factory)}</div></div>`:''}
+      <div class="fc-cell"><div class="fc-cell-lbl">Weeks Active</div><div class="fc-cell-val" style="color:var(--blue-lt)">${weeks.length}</div></div>
+    </div>
+    ${styles.length?`<div class="fc-section"><div class="fc-sec-lbl">Styles (${styles.length})</div><div class="tags">${styles.slice(0,10).map(s=>`<span class="stag">${esc(s)}</span>`).join('')}${styles.length>10?`<span style="font-size:11px;color:var(--muted)">+${styles.length-10} more</span>`:''}</div></div>`:''}
+    ${weeks.length?`<div class="fc-section"><div class="fc-sec-lbl">Weeks</div><div class="tags">${weeks.map(w=>`<span class="wtag">${esc(w)}</span>`).join('')}</div></div>`:''}
+  </div>`;
+}
+
+function setMode(m){
+  usageMode=m;
+  document.getElementById('mFab').classList.toggle('on',m==='fabric');
+  document.getElementById('mStyle').classList.toggle('on',m==='style');
+  renderUsage();
+}
+
+function renderUsage(){
+  const q=(document.getElementById('lookupInp')?.value||'').toUpperCase().trim();
+  const fmap={};
+  filtered.forEach(r=>{const k=usageMode==='fabric'?r.fn:r.style;if(k)fmap[k]=(fmap[k]||0)+1;});
+  let entries=Object.entries(fmap).filter(([k])=>!q||k.includes(q)).sort((a,b)=>b[1]-a[1]);
+  const max=entries[0]?.[1]||1;
+  const el=document.getElementById('uList');
+  if(!el)return;
+  if(!entries.length){el.innerHTML='<div class="empty">No results</div>';return;}
+  el.innerHTML=entries.map(([name,ct],i)=>{
+    const bw=Math.round(ct/max*65);
+    const poRaw=usageMode==='fabric'?(poMap[name]?.po||''):'';
+    const po=poRaw.replace(/^po[:\s]+/i,'').trim();
+    return`<div class="uitem">
+      <span class="u-rank">${i+1}</span>
+      <div class="u-info"><div class="u-name">${esc(name)}</div>${po?`<div class="u-po">PO: ${esc(po)}</div>`:''}</div>
+      <div class="u-right"><div class="u-bar" style="width:${bw}px;max-width:65px"></div><div class="u-ct">${ct}×</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+function renderCharts(){
+  const fm={},sm={};
+  filtered.forEach(r=>{if(r.fn)fm[r.fn]=(fm[r.fn]||0)+1;if(r.style)sm[r.style]=(sm[r.style]||0)+1;});
+  mkBar('cFab',Object.entries(fm).sort((a,b)=>b[1]-a[1]).slice(0,10),'#20d4ee');
+  mkBar('cStyle',Object.entries(sm).sort((a,b)=>b[1]-a[1]).slice(0,10),'#4d8bf5');
+
+  const weeks=[...new Set(filtered.map(r=>r.sheet))].sort();
+  const top5=Object.entries(fm).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k])=>k);
+  const cols=['#4d8bf5','#20d4ee','#23c55e','#fbbf24','#f472b6'];
+  dChart('cTrend');
+  const cel=document.getElementById('cTrend');
+  if(!cel)return;
+  if(weeks.length>1&&top5.length){
+    chartObjs.cTrend=new Chart(cel.getContext('2d'),{type:'line',
+      data:{labels:weeks,datasets:top5.map((f,i)=>({label:f,data:weeks.map(w=>filtered.filter(r=>r.fn===f&&r.sheet===w).length),borderColor:cols[i],backgroundColor:cols[i]+'18',fill:true,tension:0.35,pointRadius:2,borderWidth:2}))},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top',labels:{color:'#7a9ec0',font:{size:10},padding:8,boxWidth:8}}},
+        scales:{x:{grid:{color:'rgba(100,160,255,.05)'},ticks:{color:'#3d5470',font:{size:9},maxRotation:40,maxTicksLimit:8}},y:{grid:{color:'rgba(100,160,255,.05)'},ticks:{color:'#3d5470',font:{size:9},stepSize:1}}}}
+    });
+  } else {
+    cel.parentElement.innerHTML='<div class="empty">Not enough weeks for trend</div>';
+  }
+}
+
+function mkBar(id,data,color){
+  dChart(id);
+  const el=document.getElementById(id);if(!el)return;
+  chartObjs[id]=new Chart(el.getContext('2d'),{type:'bar',
+    data:{labels:data.map(([k])=>k),datasets:[{data:data.map(([,v])=>v),backgroundColor:data.map((_,i)=>color+Math.max(150,190-i*4).toString(16).padStart(2,'0')),borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw}×`}}},
+      scales:{x:{grid:{color:'rgba(100,160,255,.05)'},ticks:{color:'#3d5470',font:{size:9},maxRotation:45,maxTicksLimit:10}},y:{grid:{color:'rgba(100,160,255,.05)'},ticks:{color:'#3d5470',font:{size:9},stepSize:1}}}}
+  });
+}
+function dChart(id){if(chartObjs[id]){chartObjs[id].destroy();delete chartObjs[id];}}
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
+function filterData(){
+  const q=(document.getElementById('dataInp')?.value||'').toLowerCase();
+  const sf=document.getElementById('dataSel')?.value||'';
+  dataFiltered=filtered.filter(r=>{
+    if(q&&!`${r.style}${r.fn}${r.vendor}`.toLowerCase().includes(q))return false;
+    if(sf==='ok'&&r.status!=='ok')return false;
+    if(sf==='buy'&&!r.status.startsWith('buy'))return false;
+    return true;
+  });
+  dataOffset=0; renderData();
+}
+
+function renderData(){
+  const slice=dataFiltered.slice(0,dataOffset+PG);
+  const el=document.getElementById('dCards');
+  if(!el)return;
+  if(!slice.length){el.innerHTML='<div class="empty">No items match</div>';document.getElementById('loadMore').style.display='none';return;}
+  el.innerHTML=slice.map((r,i)=>`
+    <div class="dcard" id="dc${i}">
+      <div class="dcard-hdr" onclick="toggleDC('dc${i}')">
+        <div class="dcard-main">
+          <div class="dcard-style">${esc(r.style)}</div>
+          <div class="dcard-fab">${esc(r.fn)||'—'}</div>
+        </div>
+        <div class="dcard-right">
+          <span class="dcard-week">${esc(r.sheet)}</span>
+          ${r.status==='ok'?'<span style="color:var(--green);font-size:13px">✓</span>':r.status.startsWith('buy')?'<span style="color:var(--yellow);font-size:13px">↑</span>':''}
+          <span class="chev">▾</span>
+        </div>
+      </div>
+      <div class="dcard-body">
+        <div class="dcard-grid">
+          <div class="df"><div class="df-lbl">Vendor</div><div class="df-val">${esc(r.vendor)||'—'}</div></div>
+          <div class="df"><div class="df-lbl">Status</div><div class="df-val ${r.status==='ok'?'ok':r.status.startsWith('buy')?'buy':''}">${r.status?r.status.toUpperCase():'—'}</div></div>
+          <div class="df"><div class="df-lbl">Quantity</div><div class="df-val">${r.qty?r.qty.toLocaleString():'—'}</div></div>
+          <div class="df"><div class="df-lbl">Yardage</div><div class="df-val">${r.yrd?r.yrd.toLocaleString():'—'}</div></div>
+          <div class="df"><div class="df-lbl">Stock</div><div class="df-val">${r.stock?r.stock.toLocaleString():'0'}</div></div>
+          <div class="df"><div class="df-lbl">Yield</div><div class="df-val">${r.yld||'—'}</div></div>
+          <div class="df"><div class="df-lbl">Latest PO</div><div class="df-val mono">${esc(r.lpo)||'—'}</div></div>
+          <div class="df"><div class="df-lbl">Fabric Uses</div><div class="df-val" style="color:var(--cyan)">${r.fu}×</div></div>
+          <div class="df" style="grid-column:1/-1"><div class="df-lbl">Supplier Fabric</div><div class="df-val">${esc(r.sup)||'—'}</div></div>
+        </div>
+      </div>
+    </div>`).join('');
+  document.getElementById('loadMore').style.display=dataFiltered.length>slice.length?'block':'none';
+}
+
+function toggleDC(id){const el=document.getElementById(id);if(el)el.classList.toggle('open');}
+function moreData(){dataOffset+=PG;renderData();}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function nav(p){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.bn-btn').forEach(e=>e.classList.remove('active'));
+  document.getElementById(`pg-${p}`).classList.add('active');
+  document.getElementById(`bn-${p}`).classList.add('active');
+  if(p==='charts')renderCharts();
+  if(p==='lookup')renderUsage();
+  if(p==='data')filterData();
+}
+
+function dot(s){
+  const d=document.getElementById('dot');
+  d.className='status-dot'+(s==='live'?'':' '+s);
+}
+
+loadData();
+setInterval(loadData,60000);
+</script>
+</body>
+</html>
